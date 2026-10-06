@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "726308483867",
+    "project_id": "kasibiz-khensane",
+    "storage_bucket": "kasibiz-khensane.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:726308483867:android:2d75a734f8f4f27ea099be",
+        "android_client_info": {
+          "package_name": "com.khensane.kasibiz"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyArWaF829D_ziBYsK0h682mRPaMX3rEYEU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

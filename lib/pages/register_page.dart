@@ -1,13 +1,96 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-class RegisterPage extends StatelessWidget {
+import 'logged_in_page.dart';
+
+class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
+
+  @override
+  State<RegisterPage> createState() => _RegisterPageState();
+}
+
+class _RegisterPageState extends State<RegisterPage> {
+  final _nameController = TextEditingController();
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
+
+  bool _isLoading = false;
+
+  Future<void> _register() async {
+    final name = _nameController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
+
+    if (name.isEmpty || email.isEmpty || password.isEmpty) {
+      _showMessage('Please fill in all fields.');
+      return;
+    }
+
+    if (password.length < 6) {
+      _showMessage('Password must be at least 6 characters.');
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final credential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(email: email, password: password);
+
+      await credential.user?.updateDisplayName(name);
+
+      if (!mounted) return;
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const DashboardPage()),
+        (route) => route.isFirst,
+      );
+    } on FirebaseAuthException catch (error) {
+      if (error.code == 'email-already-in-use') {
+        _showMessage('An account already exists for this email.');
+      } else if (error.code == 'invalid-email') {
+        _showMessage('Please enter a valid email address.');
+      } else if (error.code == 'weak-password') {
+        _showMessage('Your password is too weak.');
+      } else {
+        _showMessage(error.message ?? 'Registration failed.');
+      }
+    } catch (_) {
+      _showMessage('Something went wrong. Please try again.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Create Account')),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [
@@ -27,8 +110,10 @@ class RegisterPage extends StatelessWidget {
 
             const SizedBox(height: 30),
 
-            const TextField(
-              decoration: InputDecoration(
+            TextField(
+              controller: _nameController,
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
                 labelText: 'Full Name',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.person),
@@ -37,9 +122,11 @@ class RegisterPage extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            const TextField(
+            TextField(
+              controller: _emailController,
               keyboardType: TextInputType.emailAddress,
-              decoration: InputDecoration(
+              textInputAction: TextInputAction.next,
+              decoration: const InputDecoration(
                 labelText: 'Email',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.email),
@@ -48,9 +135,15 @@ class RegisterPage extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            const TextField(
+            TextField(
+              controller: _passwordController,
               obscureText: true,
-              decoration: InputDecoration(
+              onSubmitted: (_) {
+                if (!_isLoading) {
+                  _register();
+                }
+              },
+              decoration: const InputDecoration(
                 labelText: 'Password',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.lock),
@@ -62,10 +155,19 @@ class RegisterPage extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: FilledButton(
-                onPressed: () {},
-                child: const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text('Create Account'),
+                onPressed: _isLoading ? null : _register,
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: _isLoading
+                      ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text(
+                          'Create Account',
+                          style: TextStyle(fontSize: 18),
+                        ),
                 ),
               ),
             ),
