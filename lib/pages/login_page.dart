@@ -39,9 +39,7 @@ class _LoginPageState extends State<LoginPage> {
       // Firebase authentication state has now changed.
       // Return to the first route where AuthGate will
       // automatically display DashboardPage.
-      Navigator.of(context).popUntil(
-            (route) => route.isFirst,
-      );
+      Navigator.of(context).popUntil((route) => route.isFirst);
     } on FirebaseAuthException catch (error) {
       if (!mounted) return;
 
@@ -54,20 +52,14 @@ class _LoginPageState extends State<LoginPage> {
       } else if (error.code == 'user-disabled') {
         _showMessage('This account has been disabled.');
       } else if (error.code == 'too-many-requests') {
-        _showMessage(
-          'Too many login attempts. Please try again later.',
-        );
+        _showMessage('Too many login attempts. Please try again later.');
       } else {
-        _showMessage(
-          error.message ?? 'Login failed. Please try again.',
-        );
+        _showMessage(error.message ?? 'Login failed. Please try again.');
       }
     } catch (_) {
       if (!mounted) return;
 
-      _showMessage(
-        'Something went wrong. Please try again.',
-      );
+      _showMessage('Something went wrong. Please try again.');
     } finally {
       if (mounted) {
         setState(() {
@@ -80,11 +72,9 @@ class _LoginPageState extends State<LoginPage> {
   void _showMessage(String message) {
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-      ),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -97,9 +87,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Log In'),
-      ),
+      appBar: AppBar(title: const Text('Log In')),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -107,20 +95,13 @@ class _LoginPageState extends State<LoginPage> {
             children: [
               const SizedBox(height: 30),
 
-              const Icon(
-                Icons.storefront,
-                size: 80,
-                color: Colors.green,
-              ),
+              const Icon(Icons.storefront, size: 80, color: Colors.green),
 
               const SizedBox(height: 20),
 
               const Text(
                 'Welcome Back',
-                style: TextStyle(
-                  fontSize: 30,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 30, fontWeight: FontWeight.bold),
               ),
 
               const SizedBox(height: 10),
@@ -128,10 +109,7 @@ class _LoginPageState extends State<LoginPage> {
               const Text(
                 'Log in to continue managing your business.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.grey,
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
 
               const SizedBox(height: 30),
@@ -190,18 +168,11 @@ class _LoginPageState extends State<LoginPage> {
                     padding: const EdgeInsets.all(16),
                     child: _isLoading
                         ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                      ),
-                    )
-                        : const Text(
-                      'Log In',
-                      style: TextStyle(
-                        fontSize: 18,
-                      ),
-                    ),
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Text('Log In', style: TextStyle(fontSize: 18)),
                   ),
                 ),
               ),

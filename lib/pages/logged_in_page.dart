@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import 'products_page.dart';
+
 class DashboardPage extends StatelessWidget {
   const DashboardPage({super.key});
 
@@ -9,6 +11,8 @@ class DashboardPage extends StatelessWidget {
 
     if (!context.mounted) return;
 
+    // AuthGate in main.dart detects that the user has signed out
+    // and automatically displays the WelcomePage.
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
@@ -104,17 +108,24 @@ class DashboardPage extends StatelessWidget {
 
               const SizedBox(height: 16),
 
+              // Products & Services
               _MenuButton(
                 title: 'Products & Services',
                 subtitle: 'Add and manage what you sell',
                 icon: Icons.inventory_2,
                 onTap: () {
-                  _showComingSoon(context, 'Products & Services');
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const ProductsPage(),
+                    ),
+                  );
                 },
               ),
 
               const SizedBox(height: 12),
 
+              // Record Sale
               _MenuButton(
                 title: 'Record Sale',
                 subtitle: 'Record money coming into your business',
@@ -126,6 +137,7 @@ class DashboardPage extends StatelessWidget {
 
               const SizedBox(height: 12),
 
+              // Record Expense
               _MenuButton(
                 title: 'Record Expense',
                 subtitle: 'Track your business spending',

@@ -10,9 +10,7 @@ import 'pages/register_page.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
   runApp(const KasiBizApp());
 }
@@ -26,9 +24,7 @@ class KasiBizApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'KasiBiz',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.green,
-        ),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
         useMaterial3: true,
       ),
       home: const AuthGate(),
@@ -46,9 +42,7 @@ class AuthGate extends StatelessWidget {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
-            body: Center(
-              child: CircularProgressIndicator(),
-            ),
+            body: Center(child: CircularProgressIndicator()),
           );
         }
 
@@ -74,20 +68,13 @@ class WelcomePage extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.storefront,
-                size: 100,
-                color: Colors.green,
-              ),
+              const Icon(Icons.storefront, size: 100, color: Colors.green),
 
               const SizedBox(height: 30),
 
               const Text(
                 'KasiBiz',
-                style: TextStyle(
-                  fontSize: 42,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 42, fontWeight: FontWeight.bold),
               ),
 
               const SizedBox(height: 12),
@@ -95,10 +82,7 @@ class WelcomePage extends StatelessWidget {
               const Text(
                 'Run your business. Know your numbers. Grow your hustle.',
                 textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: 18,
-                  color: Colors.grey,
-                ),
+                style: TextStyle(fontSize: 18, color: Colors.grey),
               ),
 
               const SizedBox(height: 50),
@@ -116,10 +100,7 @@ class WelcomePage extends StatelessWidget {
                   },
                   child: const Padding(
                     padding: EdgeInsets.all(16),
-                    child: Text(
-                      'Get Started',
-                      style: TextStyle(fontSize: 18),
-                    ),
+                    child: Text('Get Started', style: TextStyle(fontSize: 18)),
                   ),
                 ),
               ),
@@ -139,10 +120,7 @@ class WelcomePage extends StatelessWidget {
                   },
                   child: const Padding(
                     padding: EdgeInsets.all(16),
-                    child: Text(
-                      'Log In',
-                      style: TextStyle(fontSize: 18),
-                    ),
+                    child: Text('Log In', style: TextStyle(fontSize: 18)),
                   ),
                 ),
               ),
