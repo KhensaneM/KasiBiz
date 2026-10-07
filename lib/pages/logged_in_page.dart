@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
@@ -6,10 +7,13 @@ import 'record_sale_page.dart';
 
 class DashboardPage extends StatelessWidget {
   final FirebaseAuth? auth;
+  final FirebaseFirestore? firestore;
 
-  const DashboardPage({super.key, this.auth});
+  const DashboardPage({super.key, this.auth, this.firestore});
 
   FirebaseAuth get _auth => auth ?? FirebaseAuth.instance;
+
+  FirebaseFirestore get _firestore => firestore ?? FirebaseFirestore.instance;
 
   Future<void> _logout(BuildContext context) async {
     await _auth.signOut();
@@ -19,12 +23,41 @@ class DashboardPage extends StatelessWidget {
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
+  Stream<QuerySnapshot<Map<String, dynamic>>> _salesStream(String userId) {
+    return _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('sales')
+        .snapshots();
+  }
+
+  double _calculateSales(QuerySnapshot<Map<String, dynamic>> snapshot) {
+    double total = 0;
+
+    for (final document in snapshot.docs) {
+      final data = document.data();
+      final value = data['total'];
+
+      if (value is num) {
+        total += value.toDouble();
+      }
+    }
+
+    return total;
+  }
+
   @override
   Widget build(BuildContext context) {
     final User? user = _auth.currentUser;
 
-    final String name = user?.displayName?.trim() ?? '';
-    final String email = user?.email ?? '';
+    if (user == null) {
+      return const Scaffold(
+        body: Center(child: Text('Please log in to view your dashboard.')),
+      );
+    }
+
+    final String name = user.displayName?.trim() ?? '';
+    final String email = user.email ?? '';
 
     return Scaffold(
       appBar: AppBar(
@@ -53,6 +86,7 @@ class DashboardPage extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
+
               if (email.isNotEmpty) ...[
                 const SizedBox(height: 5),
                 Text(
@@ -60,43 +94,75 @@ class DashboardPage extends StatelessWidget {
                   style: const TextStyle(fontSize: 14, color: Colors.grey),
                 ),
               ],
+
               const SizedBox(height: 10),
+
               const Text(
                 'Here is your business overview.',
                 style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
+
               const SizedBox(height: 30),
 
-              // Business summary
-              const Row(
-                children: [
-                  Expanded(
-                    child: _SummaryCard(
-                      title: 'Sales',
-                      value: 'R0.00',
-                      icon: Icons.trending_up,
-                    ),
-                  ),
-                  SizedBox(width: 12),
-                  Expanded(
-                    child: _SummaryCard(
-                      title: 'Expenses',
-                      value: 'R0.00',
-                      icon: Icons.trending_down,
-                    ),
-                  ),
-                ],
-              ),
+              StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+                stream: _salesStream(user.uid),
+                builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                    return _buildSummaryError();
+                  }
 
-              const SizedBox(height: 12),
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(20),
+                        child: CircularProgressIndicator(),
+                      ),
+                    );
+                  }
 
-              const SizedBox(
-                width: double.infinity,
-                child: _SummaryCard(
-                  title: 'Profit',
-                  value: 'R0.00',
-                  icon: Icons.account_balance_wallet,
-                ),
+                  final double sales = snapshot.hasData
+                      ? _calculateSales(snapshot.data!)
+                      : 0.0;
+
+                  // Expenses will become live when we build
+                  // the Record Expense feature.
+                  const double expenses = 0.0;
+
+                  final double profit = sales - expenses;
+
+                  return Column(
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: _SummaryCard(
+                              title: 'Sales',
+                              value: 'R${sales.toStringAsFixed(2)}',
+                              icon: Icons.trending_up,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: _SummaryCard(
+                              title: 'Expenses',
+                              value: 'R0.00',
+                              icon: Icons.trending_down,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        child: _SummaryCard(
+                          title: 'Profit',
+                          value: 'R${profit.toStringAsFixed(2)}',
+                          icon: Icons.account_balance_wallet,
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
 
               const SizedBox(height: 32),
@@ -108,7 +174,6 @@ class DashboardPage extends StatelessWidget {
 
               const SizedBox(height: 16),
 
-              // Products & Services
               _MenuButton(
                 title: 'Products & Services',
                 subtitle: 'Add and manage what you sell',
@@ -117,7 +182,8 @@ class DashboardPage extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const ProductsPage(),
+                      builder: (context) =>
+                          ProductsPage(auth: _auth, firestore: _firestore),
                     ),
                   );
                 },
@@ -125,7 +191,6 @@ class DashboardPage extends StatelessWidget {
 
               const SizedBox(height: 12),
 
-              // Record Sale
               _MenuButton(
                 title: 'Record Sale',
                 subtitle: 'Record money coming into your business',
@@ -134,7 +199,8 @@ class DashboardPage extends StatelessWidget {
                   Navigator.push(
                     context,
                     MaterialPageRoute(
-                      builder: (context) => const RecordSalePage(),
+                      builder: (context) =>
+                          RecordSalePage(auth: _auth, firestore: _firestore),
                     ),
                   );
                 },
@@ -142,7 +208,6 @@ class DashboardPage extends StatelessWidget {
 
               const SizedBox(height: 12),
 
-              // Record Expense
               _MenuButton(
                 title: 'Record Expense',
                 subtitle: 'Track your business spending',
@@ -154,7 +219,6 @@ class DashboardPage extends StatelessWidget {
 
               const SizedBox(height: 30),
 
-              // Logout
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
@@ -168,6 +232,21 @@ class DashboardPage extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSummaryError() {
+    return const Card(
+      child: Padding(
+        padding: EdgeInsets.all(20),
+        child: Row(
+          children: [
+            Icon(Icons.error_outline),
+            SizedBox(width: 12),
+            Expanded(child: Text('Could not load your business summary.')),
+          ],
         ),
       ),
     );
