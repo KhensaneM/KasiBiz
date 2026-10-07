@@ -1,20 +1,41 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class ProductsPage extends StatefulWidget {
-  const ProductsPage({super.key});
+  final FirebaseAuth? auth;
+  final FirebaseFirestore? firestore;
+
+  const ProductsPage({super.key, this.auth, this.firestore});
 
   @override
   State<ProductsPage> createState() => _ProductsPageState();
 }
 
 class _ProductsPageState extends State<ProductsPage> {
-  final List<Map<String, dynamic>> _items = [];
+  FirebaseAuth get _auth => widget.auth ?? FirebaseAuth.instance;
+
+  FirebaseFirestore get _firestore =>
+      widget.firestore ?? FirebaseFirestore.instance;
+
+  User? get _user => _auth.currentUser;
+
+  CollectionReference<Map<String, dynamic>> get _productsCollection {
+    final user = _user;
+
+    if (user == null) {
+      throw StateError('User is not logged in.');
+    }
+
+    return _firestore.collection('users').doc(user.uid).collection('products');
+  }
 
   Future<void> _showAddItemDialog() async {
     final nameController = TextEditingController();
     final priceController = TextEditingController();
 
     String selectedType = 'Product';
+    bool isSaving = false;
 
     await showDialog<void>(
       context: context,
@@ -67,63 +88,96 @@ class _ProductsPageState extends State<ProductsPage> {
                           child: Text('Service'),
                         ),
                       ],
-                      onChanged: (value) {
-                        if (value == null) return;
+                      onChanged: isSaving
+                          ? null
+                          : (value) {
+                              if (value == null) return;
 
-                        setDialogState(() {
-                          selectedType = value;
-                        });
-                      },
+                              setDialogState(() {
+                                selectedType = value;
+                              });
+                            },
                     ),
                   ],
                 ),
               ),
               actions: [
                 TextButton(
-                  onPressed: () {
-                    Navigator.of(dialogContext).pop();
-                  },
+                  onPressed: isSaving
+                      ? null
+                      : () {
+                          Navigator.of(dialogContext).pop();
+                        },
                   child: const Text('Cancel'),
                 ),
                 FilledButton(
-                  onPressed: () {
-                    final name = nameController.text.trim();
-                    final priceText = priceController.text.trim();
-                    final price = double.tryParse(priceText);
+                  onPressed: isSaving
+                      ? null
+                      : () async {
+                          final name = nameController.text.trim();
 
-                    if (name.isEmpty) {
-                      ScaffoldMessenger.of(this.context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Please enter a product or service name.',
-                          ),
-                        ),
-                      );
-                      return;
-                    }
+                          final price = double.tryParse(
+                            priceController.text.trim(),
+                          );
 
-                    if (price == null || price < 0) {
-                      ScaffoldMessenger.of(this.context).showSnackBar(
-                        const SnackBar(
-                          content: Text(
-                            'Please enter a valid price.',
-                          ),
-                        ),
-                      );
-                      return;
-                    }
+                          if (name.isEmpty) {
+                            _showMessage(
+                              'Please enter a product or service name.',
+                            );
+                            return;
+                          }
 
-                    setState(() {
-                      _items.add({
-                        'name': name,
-                        'price': price,
-                        'type': selectedType,
-                      });
-                    });
+                          if (price == null || price < 0) {
+                            _showMessage('Please enter a valid price.');
+                            return;
+                          }
 
-                    Navigator.of(dialogContext).pop();
-                  },
-                  child: const Text('Save'),
+                          setDialogState(() {
+                            isSaving = true;
+                          });
+
+                          try {
+                            await _productsCollection.add({
+                              'name': name,
+                              'price': price,
+                              'type': selectedType,
+                              'createdAt': FieldValue.serverTimestamp(),
+                            });
+
+                            if (!dialogContext.mounted) return;
+
+                            Navigator.of(dialogContext).pop();
+                          } on FirebaseException catch (error) {
+                            if (!mounted) return;
+
+                            _showMessage(
+                              error.message ?? 'Could not save the item.',
+                            );
+
+                            if (dialogContext.mounted) {
+                              setDialogState(() {
+                                isSaving = false;
+                              });
+                            }
+                          } catch (_) {
+                            if (!mounted) return;
+
+                            _showMessage('Something went wrong while saving.');
+
+                            if (dialogContext.mounted) {
+                              setDialogState(() {
+                                isSaving = false;
+                              });
+                            }
+                          }
+                        },
+                  child: isSaving
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Text('Save'),
                 ),
               ],
             );
@@ -132,33 +186,50 @@ class _ProductsPageState extends State<ProductsPage> {
       },
     );
 
-    // We deliberately do not manually dispose these here.
-    // The dialog has already been removed from the widget tree.
+    // Do not manually dispose these dialog controllers here.
+    // The dialog lifecycle previously caused a Flutter assertion
+    // when they were disposed immediately after showDialog.
   }
 
-  void _deleteItem(int index) {
-    final String itemName = _items[index]['name'] as String;
+  Future<void> _deleteItem(String documentId, String itemName) async {
+    try {
+      await _productsCollection.doc(documentId).delete();
 
-    setState(() {
-      _items.removeAt(index);
-    });
+      if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('$itemName removed.'),
-      ),
-    );
+      _showMessage('$itemName removed.');
+    } on FirebaseException catch (error) {
+      if (!mounted) return;
+
+      _showMessage(error.message ?? 'Could not delete the item.');
+    } catch (_) {
+      if (!mounted) return;
+
+      _showMessage('Something went wrong while deleting.');
+    }
+  }
+
+  void _showMessage(String message) {
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
   Widget build(BuildContext context) {
+    if (_user == null) {
+      return const Scaffold(
+        body: Center(child: Text('Please log in to manage products.')),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text(
           'Products & Services',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-          ),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -166,9 +237,85 @@ class _ProductsPageState extends State<ProductsPage> {
         icon: const Icon(Icons.add),
         label: const Text('Add'),
       ),
-      body: _items.isEmpty
-          ? _buildEmptyState()
-          : _buildItemsList(),
+      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: _productsCollection
+            .orderBy('createdAt', descending: true)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.hasError) {
+            return _buildErrorState(snapshot.error.toString());
+          }
+
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          final products = snapshot.data?.docs ?? [];
+
+          if (products.isEmpty) {
+            return _buildEmptyState();
+          }
+
+          return ListView.builder(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 100),
+            itemCount: products.length,
+            itemBuilder: (context, index) {
+              final document = products[index];
+              final data = document.data();
+
+              final String name = data['name']?.toString() ?? 'Unnamed item';
+
+              final String type = data['type']?.toString() ?? 'Product';
+
+              final num priceValue = data['price'] is num ? data['price'] : 0;
+
+              final double price = priceValue.toDouble();
+
+              return Card(
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ListTile(
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 8,
+                  ),
+                  leading: CircleAvatar(
+                    child: Icon(
+                      type == 'Product'
+                          ? Icons.shopping_bag
+                          : Icons.design_services,
+                    ),
+                  ),
+                  title: Text(
+                    name,
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  subtitle: Text(type),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'R${price.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      IconButton(
+                        tooltip: 'Delete',
+                        onPressed: () {
+                          _deleteItem(document.id, name);
+                        },
+                        icon: const Icon(Icons.delete_outline),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 
@@ -188,27 +335,19 @@ class _ProductsPageState extends State<ProductsPage> {
             const Text(
               'No products or services yet',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 10),
             const Text(
               'Add what your business sells so you can start recording sales.',
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey,
-              ),
+              style: TextStyle(fontSize: 16, color: Colors.grey),
             ),
             const SizedBox(height: 25),
             FilledButton.icon(
               onPressed: _showAddItemDialog,
               icon: const Icon(Icons.add),
-              label: const Text(
-                'Add Product or Service',
-              ),
+              label: const Text('Add Product or Service'),
             ),
           ],
         ),
@@ -216,67 +355,25 @@ class _ProductsPageState extends State<ProductsPage> {
     );
   }
 
-  Widget _buildItemsList() {
-    return ListView.builder(
-      padding: const EdgeInsets.fromLTRB(
-        16,
-        16,
-        16,
-        100,
+  Widget _buildErrorState(String error) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.error_outline, size: 70),
+            const SizedBox(height: 16),
+            const Text(
+              'Could not load your products.',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text(error, textAlign: TextAlign.center),
+          ],
+        ),
       ),
-      itemCount: _items.length,
-      itemBuilder: (context, index) {
-        final item = _items[index];
-
-        final String name = item['name'] as String;
-        final double price = item['price'] as double;
-        final String type = item['type'] as String;
-
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 18,
-              vertical: 8,
-            ),
-            leading: CircleAvatar(
-              child: Icon(
-                type == 'Product'
-                    ? Icons.shopping_bag
-                    : Icons.design_services,
-              ),
-            ),
-            title: Text(
-              name,
-              style: const TextStyle(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            subtitle: Text(type),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'R${price.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                IconButton(
-                  tooltip: 'Delete',
-                  onPressed: () {
-                    _deleteItem(index);
-                  },
-                  icon: const Icon(
-                    Icons.delete_outline,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }

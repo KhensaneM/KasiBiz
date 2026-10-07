@@ -4,21 +4,23 @@ import 'package:flutter/material.dart';
 import 'products_page.dart';
 
 class DashboardPage extends StatelessWidget {
-  const DashboardPage({super.key});
+  final FirebaseAuth? auth;
+
+  const DashboardPage({super.key, this.auth});
+
+  FirebaseAuth get _auth => auth ?? FirebaseAuth.instance;
 
   Future<void> _logout(BuildContext context) async {
-    await FirebaseAuth.instance.signOut();
+    await _auth.signOut();
 
     if (!context.mounted) return;
 
-    // AuthGate in main.dart detects that the user has signed out
-    // and automatically displays the WelcomePage.
     Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   @override
   Widget build(BuildContext context) {
-    final User? user = FirebaseAuth.instance.currentUser;
+    final User? user = _auth.currentUser;
 
     final String name = user?.displayName?.trim() ?? '';
     final String email = user?.email ?? '';
@@ -108,7 +110,6 @@ class DashboardPage extends StatelessWidget {
 
               const SizedBox(height: 16),
 
-              // Products & Services
               _MenuButton(
                 title: 'Products & Services',
                 subtitle: 'Add and manage what you sell',
@@ -125,7 +126,6 @@ class DashboardPage extends StatelessWidget {
 
               const SizedBox(height: 12),
 
-              // Record Sale
               _MenuButton(
                 title: 'Record Sale',
                 subtitle: 'Record money coming into your business',
@@ -137,7 +137,6 @@ class DashboardPage extends StatelessWidget {
 
               const SizedBox(height: 12),
 
-              // Record Expense
               _MenuButton(
                 title: 'Record Expense',
                 subtitle: 'Track your business spending',
@@ -194,13 +193,9 @@ class _SummaryCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(icon, size: 30, color: Colors.green),
-
             const SizedBox(height: 12),
-
             Text(title, style: const TextStyle(fontSize: 16)),
-
             const SizedBox(height: 5),
-
             Text(
               value,
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
