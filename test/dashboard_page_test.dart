@@ -61,19 +61,6 @@ void main() {
       expect(find.text('Record Expense'), findsOneWidget);
     });
 
-    testWidgets('Record Sale shows coming soon message', (
-      WidgetTester tester,
-    ) async {
-      await tester.pumpWidget(createDashboard());
-
-      await tester.ensureVisible(find.text('Record Sale'));
-
-      await tester.tap(find.text('Record Sale'));
-
-      await tester.pump();
-
-      expect(find.text('Record Sale is coming next.'), findsOneWidget);
-    });
 
     testWidgets('Record Expense shows coming soon message', (
       WidgetTester tester,

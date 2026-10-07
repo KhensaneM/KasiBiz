@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'products_page.dart';
+import 'record_sale_page.dart';
 
 class DashboardPage extends StatelessWidget {
   final FirebaseAuth? auth;
@@ -52,7 +53,6 @@ class DashboardPage extends StatelessWidget {
                   fontWeight: FontWeight.bold,
                 ),
               ),
-
               if (email.isNotEmpty) ...[
                 const SizedBox(height: 5),
                 Text(
@@ -60,16 +60,14 @@ class DashboardPage extends StatelessWidget {
                   style: const TextStyle(fontSize: 14, color: Colors.grey),
                 ),
               ],
-
               const SizedBox(height: 10),
-
               const Text(
                 'Here is your business overview.',
                 style: TextStyle(fontSize: 16, color: Colors.grey),
               ),
-
               const SizedBox(height: 30),
 
+              // Business summary
               const Row(
                 children: [
                   Expanded(
@@ -110,6 +108,7 @@ class DashboardPage extends StatelessWidget {
 
               const SizedBox(height: 16),
 
+              // Products & Services
               _MenuButton(
                 title: 'Products & Services',
                 subtitle: 'Add and manage what you sell',
@@ -126,17 +125,24 @@ class DashboardPage extends StatelessWidget {
 
               const SizedBox(height: 12),
 
+              // Record Sale
               _MenuButton(
                 title: 'Record Sale',
                 subtitle: 'Record money coming into your business',
                 icon: Icons.point_of_sale,
                 onTap: () {
-                  _showComingSoon(context, 'Record Sale');
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => const RecordSalePage(),
+                    ),
+                  );
                 },
               ),
 
               const SizedBox(height: 12),
 
+              // Record Expense
               _MenuButton(
                 title: 'Record Expense',
                 subtitle: 'Track your business spending',
@@ -148,6 +154,7 @@ class DashboardPage extends StatelessWidget {
 
               const SizedBox(height: 30),
 
+              // Logout
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
