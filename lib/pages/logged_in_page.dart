@@ -2,9 +2,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
+import 'expense_history_page.dart';
 import 'products_page.dart';
-import 'record_sale_page.dart';
 import 'record_expense_page.dart';
+import 'record_sale_page.dart';
+import 'sales_history_page.dart';
 
 class DashboardPage extends StatefulWidget {
   final FirebaseAuth? auth;
@@ -96,12 +98,32 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
+  void _openSalesHistory(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            SalesHistoryPage(auth: _auth, firestore: _firestore),
+      ),
+    );
+  }
+
   void _openRecordExpense(BuildContext context) {
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) =>
             RecordExpensePage(auth: _auth, firestore: _firestore),
+      ),
+    );
+  }
+
+  void _openExpenseHistory(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            ExpenseHistoryPage(auth: _auth, firestore: _firestore),
       ),
     );
   }
@@ -288,10 +310,28 @@ class _DashboardPageState extends State<DashboardPage> {
               const SizedBox(height: 12),
 
               _MenuButton(
+                title: 'Sales History',
+                subtitle: 'View your previous sales and earnings',
+                icon: Icons.history,
+                onTap: () => _openSalesHistory(context),
+              ),
+
+              const SizedBox(height: 12),
+
+              _MenuButton(
                 title: 'Record Expense',
                 subtitle: 'Track your business spending',
                 icon: Icons.receipt_long,
                 onTap: () => _openRecordExpense(context),
+              ),
+
+              const SizedBox(height: 12),
+
+              _MenuButton(
+                title: 'Expense History',
+                subtitle: 'View your previous expenses and spending',
+                icon: Icons.history_toggle_off,
+                onTap: () => _openExpenseHistory(context),
               ),
 
               const SizedBox(height: 30),
