@@ -4,39 +4,54 @@ import 'package:flutter/material.dart';
 
 import 'products_page.dart';
 import 'record_sale_page.dart';
+import 'record_expense_page.dart';
 
-class DashboardPage extends StatelessWidget {
+class DashboardPage extends StatefulWidget {
   final FirebaseAuth? auth;
   final FirebaseFirestore? firestore;
 
   const DashboardPage({super.key, this.auth, this.firestore});
 
-  FirebaseAuth get _auth => auth ?? FirebaseAuth.instance;
+  @override
+  State<DashboardPage> createState() => _DashboardPageState();
+}
 
-  FirebaseFirestore get _firestore => firestore ?? FirebaseFirestore.instance;
+class _DashboardPageState extends State<DashboardPage> {
+  FirebaseAuth get _auth => widget.auth ?? FirebaseAuth.instance;
 
-  Future<void> _logout(BuildContext context) async {
-    await _auth.signOut();
+  FirebaseFirestore get _firestore =>
+      widget.firestore ?? FirebaseFirestore.instance;
 
-    if (!context.mounted) return;
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _sales;
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _expenses;
+  String? _streamUserId;
 
-    Navigator.of(context).popUntil((route) => route.isFirst);
-  }
+  void _initializeStreams(String userId) {
+    if (_streamUserId == userId) return;
 
-  Stream<QuerySnapshot<Map<String, dynamic>>> _salesStream(String userId) {
-    return _firestore
+    _streamUserId = userId;
+
+    _sales = _firestore
         .collection('users')
         .doc(userId)
         .collection('sales')
         .snapshots();
+
+    _expenses = _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('expenses')
+        .snapshots();
   }
 
-  double _calculateSales(QuerySnapshot<Map<String, dynamic>> snapshot) {
+  double _calculateTotal(
+    QuerySnapshot<Map<String, dynamic>> snapshot,
+    String field,
+  ) {
     double total = 0;
 
     for (final document in snapshot.docs) {
-      final data = document.data();
-      final value = data['total'];
+      final value = document.data()[field];
 
       if (value is num) {
         total += value.toDouble();
@@ -44,6 +59,145 @@ class DashboardPage extends StatelessWidget {
     }
 
     return total;
+  }
+
+  Future<void> _logout(BuildContext context) async {
+    try {
+      await _auth.signOut();
+
+      if (!context.mounted) return;
+
+      Navigator.of(context).popUntil((route) => route.isFirst);
+    } catch (_) {
+      if (!context.mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not log out. Please try again.')),
+      );
+    }
+  }
+
+  void _openProducts(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ProductsPage(auth: _auth, firestore: _firestore),
+      ),
+    );
+  }
+
+  void _openRecordSale(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            RecordSalePage(auth: _auth, firestore: _firestore),
+      ),
+    );
+  }
+
+  void _openRecordExpense(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) =>
+            RecordExpensePage(auth: _auth, firestore: _firestore),
+      ),
+    );
+  }
+
+  Widget _buildBusinessSummary(String userId) {
+    _initializeStreams(userId);
+
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: _sales,
+      builder: (context, salesSnapshot) {
+        if (salesSnapshot.hasError) {
+          return _buildSummaryError();
+        }
+
+        if (!salesSnapshot.hasData) {
+          return const Center(
+            child: Padding(
+              padding: EdgeInsets.all(20),
+              child: CircularProgressIndicator(),
+            ),
+          );
+        }
+
+        return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+          stream: _expenses,
+          builder: (context, expensesSnapshot) {
+            if (expensesSnapshot.hasError) {
+              return _buildSummaryError();
+            }
+
+            if (!expensesSnapshot.hasData) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: CircularProgressIndicator(),
+                ),
+              );
+            }
+
+            final sales = _calculateTotal(salesSnapshot.data!, 'total');
+
+            final expenses = _calculateTotal(expensesSnapshot.data!, 'amount');
+
+            final profit = sales - expenses;
+
+            return Column(
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: _SummaryCard(
+                        title: 'Sales',
+                        value: 'R${sales.toStringAsFixed(2)}',
+                        icon: Icons.trending_up,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _SummaryCard(
+                        title: 'Expenses',
+                        value: 'R${expenses.toStringAsFixed(2)}',
+                        icon: Icons.trending_down,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: _SummaryCard(
+                    title: 'Profit',
+                    value: 'R${profit.toStringAsFixed(2)}',
+                    icon: Icons.account_balance_wallet,
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSummaryError() {
+    return const Card(
+      child: Padding(
+        padding: EdgeInsets.all(20),
+        child: Row(
+          children: [
+            Icon(Icons.error_outline),
+            SizedBox(width: 12),
+            Expanded(child: Text('Could not load your business summary.')),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
@@ -56,8 +210,8 @@ class DashboardPage extends StatelessWidget {
       );
     }
 
-    final String name = user.displayName?.trim() ?? '';
-    final String email = user.email ?? '';
+    final name = user.displayName?.trim() ?? '';
+    final email = user.email ?? '';
 
     return Scaffold(
       appBar: AppBar(
@@ -104,66 +258,7 @@ class DashboardPage extends StatelessWidget {
 
               const SizedBox(height: 30),
 
-              StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-                stream: _salesStream(user.uid),
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return _buildSummaryError();
-                  }
-
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(20),
-                        child: CircularProgressIndicator(),
-                      ),
-                    );
-                  }
-
-                  final double sales = snapshot.hasData
-                      ? _calculateSales(snapshot.data!)
-                      : 0.0;
-
-                  // Expenses will become live when we build
-                  // the Record Expense feature.
-                  const double expenses = 0.0;
-
-                  final double profit = sales - expenses;
-
-                  return Column(
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _SummaryCard(
-                              title: 'Sales',
-                              value: 'R${sales.toStringAsFixed(2)}',
-                              icon: Icons.trending_up,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          const Expanded(
-                            child: _SummaryCard(
-                              title: 'Expenses',
-                              value: 'R0.00',
-                              icon: Icons.trending_down,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: double.infinity,
-                        child: _SummaryCard(
-                          title: 'Profit',
-                          value: 'R${profit.toStringAsFixed(2)}',
-                          icon: Icons.account_balance_wallet,
-                        ),
-                      ),
-                    ],
-                  );
-                },
-              ),
+              _buildBusinessSummary(user.uid),
 
               const SizedBox(height: 32),
 
@@ -178,15 +273,7 @@ class DashboardPage extends StatelessWidget {
                 title: 'Products & Services',
                 subtitle: 'Add and manage what you sell',
                 icon: Icons.inventory_2,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          ProductsPage(auth: _auth, firestore: _firestore),
-                    ),
-                  );
-                },
+                onTap: () => _openProducts(context),
               ),
 
               const SizedBox(height: 12),
@@ -195,15 +282,7 @@ class DashboardPage extends StatelessWidget {
                 title: 'Record Sale',
                 subtitle: 'Record money coming into your business',
                 icon: Icons.point_of_sale,
-                onTap: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          RecordSalePage(auth: _auth, firestore: _firestore),
-                    ),
-                  );
-                },
+                onTap: () => _openRecordSale(context),
               ),
 
               const SizedBox(height: 12),
@@ -212,9 +291,7 @@ class DashboardPage extends StatelessWidget {
                 title: 'Record Expense',
                 subtitle: 'Track your business spending',
                 icon: Icons.receipt_long,
-                onTap: () {
-                  _showComingSoon(context, 'Record Expense');
-                },
+                onTap: () => _openRecordExpense(context),
               ),
 
               const SizedBox(height: 30),
@@ -235,27 +312,6 @@ class DashboardPage extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  Widget _buildSummaryError() {
-    return const Card(
-      child: Padding(
-        padding: EdgeInsets.all(20),
-        child: Row(
-          children: [
-            Icon(Icons.error_outline),
-            SizedBox(width: 12),
-            Expanded(child: Text('Could not load your business summary.')),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showComingSoon(BuildContext context, String feature) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$feature is coming next.')));
   }
 }
 
