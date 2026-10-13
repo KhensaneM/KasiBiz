@@ -209,16 +209,35 @@ These automated tests use mock Firebase services and do not replace testing agai
 
 Android application screenshots will be added here.
 
-Planned screenshots:
 
-- Welcome screen
-- Registration and login
-- Business dashboard
-- Products & Services
-- Record Sale
-- Sales History
-- Record Expense
-- Expense History
+## Screenshots
+
+### Welcome Screen
+<img src="screenshots/welcome.png" width="280" alt="KasiBiz welcome screen">
+
+### Create Account
+<img src="screenshots/create_account.png" width="280" alt="KasiBiz registration screen">
+
+### Login
+<img src="screenshots/welcome_back.png" width="280" alt="KasiBiz login screen">
+
+### Business Dashboard
+<img src="screenshots/dashboard.png" width="280" alt="KasiBiz business dashboard">
+
+### Products & Services
+<img src="screenshots/products.png" width="280" alt="KasiBiz products and services">
+
+### Record Sale
+<img src="screenshots/record_sale.png" width="280" alt="KasiBiz record sale screen">
+
+### Sales History
+<img src="screenshots/sales_history.png" width="280" alt="KasiBiz sales history">
+
+### Record Expense
+<img src="screenshots/record_expense.png" width="280" alt="KasiBiz record expense screen">
+
+### Expense History
+<img src="screenshots/expense_history.png" width="280" alt="KasiBiz expense history">
 
 ## Target Users
 
