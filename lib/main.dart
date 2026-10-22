@@ -76,17 +76,13 @@ class WelcomePage extends StatelessWidget {
                 'KasiBiz',
                 style: TextStyle(fontSize: 42, fontWeight: FontWeight.bold),
               ),
-
               const SizedBox(height: 12),
-
               const Text(
                 'Run your business. Know your numbers. Grow your hustle.',
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 18, color: Colors.grey),
               ),
-
               const SizedBox(height: 50),
-
               SizedBox(
                 width: double.infinity,
                 child: FilledButton(
